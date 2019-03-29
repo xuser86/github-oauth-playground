@@ -12,15 +12,6 @@ const apiURLBase = 'https://api.github.com/';
 const baseURL = 'http://localhost:3000/';
 const redirectURL = 'http://localhost:3000/callback';
 
-function queryGitHub(reqSession) {
-    headers['Accept'] = 'application/vnd.github.v3+json, application/json';
-    headers['User-Agent'] = baseURL;
-
-    if (reqSession['access_token']) {
-        headers['Authorization'] = 'Bearer ' + reqSession['access_token'];
-    }
-}
-
 function buildQuery(params) {
     let str = [];
     
@@ -77,12 +68,51 @@ app.get('/', function(req, res, next) {
 });
 
 app.get('/callback', function(req, res, next) {
-    res.json(req.query);
-    /*if (req.query['code']) {
+
+    if (req.query['code']) {
         if (!req.query['state'] || req.session['state'] !== req.query['state']) {
             res.redirect(baseURL + '?error=invalid_state');
         }
-    }*/
+
+        let url_params = buildQuery({
+            'grant_type' : 'authorization_code',
+            'client_id' : githubClientID,
+            'client_secret' : githubClientSecret,
+            'redirect_uri' : baseURL,
+            'code' : req.query['code']
+        });
+
+        let headers = {};
+
+        headers['Accept'] = 'application/vnd.github.v3+json, application/json';
+        headers['User-Agent'] = baseURL;
+    
+        if (req.session['access_token']) {
+            headers['Authorization'] = 'Bearer ' + req.session['access_token'];
+        }
+
+        console.log('get toket from code', tokenURL + url_params);
+
+        https.get(tokenURL + url_params, (res2) => {
+            console.log('statusCode:', res2.statusCode);
+            console.log('headers:', res2.headers);
+
+            let data = '';
+
+            // A chunk of data has been recieved.
+            resp.on('data', (chunk) => {
+                data += chunk;
+            });
+          
+            // The whole response has been received. Print out the result.
+            resp.on('end', () => {
+                console.log(JSON.parse(data).explanation);
+            });
+
+        }).on('error', (e) => {
+            console.error(e);
+        });
+    }
 });
 
 app.listen(3000, function () {
